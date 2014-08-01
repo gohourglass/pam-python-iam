@@ -1,0 +1,22 @@
+#!/bin/sh
+[ "$PAM_TYPE" = "auth" ] || exit 0
+
+USER_EXISTS=false
+getent passwd $PAM_USER >/dev/null 2>&1 && USER_EXISTS=true
+
+if $USER_EXISTS
+  then
+    echo User $PAM_USER already exists
+  else
+    echo User $PAM_USER not yet in system --
+fi
+
+USER_ACTIVE=$(python /lib/security/pam_crowd.py $PAM_USER)
+if [ "$USER_ACTIVE" = "True" ]
+  then
+    echo User $PAM_USER active, adding to system
+    adduser -q $PAM_USER --disabled-password --gecos crowd-user-$PAM_USER
+  else
+    echo User $PAM_USER does not exist or is not active, not creating
+fi
+

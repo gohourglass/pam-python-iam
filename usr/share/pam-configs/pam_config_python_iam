@@ -1,0 +1,25 @@
+Name: PAM_Python Module with pam_iam.py
+Default: no
+Priority: 0
+Auth-Type: Primary
+Auth:
+  required pam_exec.so /usr/local/bin/mk-iam-user
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+Auth-Initial:
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+Account-Type: Primary
+Account:
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+	
+Account-Initial:
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+Session-Type: Additional
+Session:
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+Session-Initial:
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+Password-Type: Primary
+Password:
+	sufficient 	pam_python.so pam_iam.py use_first_pass debug
+Password-Initial:
+	sufficient pam_python.so pam_iam.py use_first_pass debug
