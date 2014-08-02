@@ -1,4 +1,5 @@
 import boto, cookielib, os, urllib, urllib2, sys, syslog
+from pyquery import PyQuery as pq
 
 AWS_ACCESS_KEY_ID = ""
 AWS_SECRET_ACCESS_KEY = ""
@@ -17,20 +18,30 @@ class NoRedirection(urllib2.HTTPErrorProcessor):
 def authorize(username):
   return username in [x['user_name'] for x in iam.get_all_users()['list_users_response']['list_users_result']['users']]
 
-def authenticate(username, password):
+def authenticate(pamh, username, password, mfa_token=''):
   cj = cookielib.CookieJar()
   opener = urllib2.build_opener(NoRedirection, urllib2.HTTPCookieProcessor(cj))
 
-  data = "redirect_uri=https%%3A%%2F%%2Fconsole.aws.amazon.com%%2Fconsole%%2Fhome%%3Fstate%%3DhashArgs%%2523%%26isauthcode%%3Dtrue&forceMobileApp=&forceMobileLayout=&isIAMUser=1&mfaLoginFailure=&Action=login&RemainingExpiryPeriod=&account=%(account)s&username=%(username)s&password=%(password)s&mfacode=&next_mfacode=&client_id=arn:aws:iam::015428540659:user/homepage"
+  data = "redirect_uri=https%%3A%%2F%%2Fconsole.aws.amazon.com%%2Fconsole%%2Fhome%%3Fstate%%3DhashArgs%%2523%%26isauthcode%%3Dtrue&forceMobileApp=&forceMobileLayout=&isIAMUser=1&mfaLoginFailure=&Action=login&RemainingExpiryPeriod=&account=%(account)s&username=%(username)s&password=%(password)s&mfacode=%(mfa_token)s&next_mfacode=&client_id=arn:aws:iam::015428540659:user/homepage"
   data = data % {
     'username': username,
     'password': password,
-    'account': ORG_NAME
+    'account': ORG_NAME,
+    'mfa_token': mfa_token
   }
 
   req = urllib2.Request('https://signin.aws.amazon.com/oauth', headers={"Referer":"https://signin.aws.amazon.com"}, data=data)
   resp = opener.open(req)
-  return resp.code == 302
+
+  if resp.code == 302: return True
+  elif resp.code == 200:
+    page = pq(resp.read())
+    if page("#mfaLoginFailure").val() != '0':
+      return False
+    mfa_token = resp = pamh.conversation(pamh.Message(pamh.PAM_PROMPT_ECHO_ON, "MFA Token: ")).resp
+    return authenticate(pamh, username, password, mfa_token)
+  return False
+  
 
 def auth_log(msg):
   syslog.openlog(facility=syslog.LOG_AUTH)
@@ -54,7 +65,7 @@ def pam_sm_authenticate(pamh, flags, argv):
   except pamh.exception, e:
     return e.pam_result
 
-  authenticated = authenticate(user, resp.resp)
+  authenticated = authenticate(pamh, user, resp.resp)
   if authenticated:
     return pamh.PAM_SUCCESS
 
