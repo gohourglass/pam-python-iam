@@ -11,7 +11,7 @@ if $USER_EXISTS
     echo User $PAM_USER not yet in system --
 fi
 
-USER_ACTIVE=$(python /lib/security/pam_crowd.py $PAM_USER)
+USER_ACTIVE=$(python /lib/security/pam_iam.py $PAM_USER)
 if [ "$USER_ACTIVE" = "True" ]
   then
     echo User $PAM_USER active, adding to system
